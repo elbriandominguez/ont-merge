@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Function to display usage instructions
+usage() {
+    echo "Usage: $0 [-s OFFSET] FOLDERIN"
+    echo "  -s OFFSET: The barcode offset (default is 1)"
+    echo "  FOLDERIN: The input folder containing sequencing data"
+}
+
+# Parsing command-line options
+while getopts ":s:" opt; do
+    case ${opt} in
+        s )
+            OFFSET=$OPTARG
+            ;;
+        \? )
+            echo "Invalid Option: -$OPTARG" 1>&2
+            usage
+            exit 1
+            ;;
+        : )
+            echo "Invalid Option: -$OPTARG requires an argument" 1>&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND -1))
+
+# Assign FOLDERIN from remaining argument
+FOLDERIN=$1
+
+# Validate FOLDERIN
+if [[ -z "$FOLDERIN" ]]; then
+    echo "ERROR: Input folder not specified."
+    usage
+    exit 1
+fi
+
+FOLDERPATH="$FOLDERIN"
+FOLDERNAME=$(basename "$FOLDERIN")
+FOLDEROUT="${FOLDERPATH}/merged"
+
+# Check for existing 'merged' folder
+if [[ -d ${FOLDEROUT} ]]; then
+    echo "Found existing folder ${FOLDEROUT}, please delete to continue."
+    exit 1
+fi
+
+# Initialize the list of barcodes to keep
+if [[ -z $OFFSET ]]; then
+    OFFSET=1
+fi
+KEEPERS=( $(seq -f "%02g" $OFFSET 96) )
+
+# Prepare output directories
+FASTQPATH="${FOLDEROUT}/fastq"
+mkdir -p "$FASTQPATH"
+
+# Iterate through barcodes and concatenate FASTQ files
+for BARCODE in ${KEEPERS[@]}; do
+# Only proceed if files for this barcode exist
+if [[ -n $(find $FOLDERPATH -name "*.fastq.gz" -path "*fastq_pass/*_pass*barcode$BARCODE*" -not -path "*merged*") ]]; then
+    FASTQRESULT="$FASTQPATH"/"$FOLDERNAME"_pass_barcode"$BARCODE"_"${ONTID}"_0.fastq.gz
+
+    find $FOLDERPATH -name "*.fastq.gz" -path "*fastq_pass/*_pass*barcode$BARCODE*" -not -path "*merged*" | xargs -I {} cat {} >> ${FASTQRESULT}
+fi
+done
