@@ -6,4 +6,4 @@ This is coming from a need to make sure I can track all of my diagnostic sequenc
 
 Feel free to send me a message to suggest any changes or ideas to streamline this process of tracking sequencing data for diagnostics.
 
-It seems like merging .fast5 files for research might be of a similar code structure, but for now this is only for cat-ing .fastq.gz files.
+It seems like merging .fast5 files might be of a similar code structure, but for now this is only for cat-ing .fastq.gz files.
