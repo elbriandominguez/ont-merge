@@ -54,7 +54,7 @@ fi
 KEEPERS=( $(seq -f "%02g" $OFFSET 96) )
 
 # Prepare output directories
-FASTQPATH="${FOLDEROUT}/fastq"
+FASTQPATH="${FOLDEROUT}"
 mkdir -p "$FASTQPATH"
 
 # Iterate through barcodes and concatenate FASTQ files
