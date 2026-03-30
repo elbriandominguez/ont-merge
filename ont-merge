@@ -1,68 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Function to display usage instructions
 usage() {
-    echo "Usage: $0 [-s OFFSET] FOLDERIN"
-    echo "  -s OFFSET: The barcode offset (default is 1)"
-    echo "  FOLDERIN: The input folder containing sequencing data"
+  echo "Usage: $0 [-s OFFSET] RUN_DIR"
+  echo "  -s OFFSET: barcode offset (default 1)"
+  exit 1
 }
 
-# Parsing command-line options
+OFFSET=1
 while getopts ":s:" opt; do
-    case ${opt} in
-        s )
-            OFFSET=$OPTARG
-            ;;
-        \? )
-            echo "Invalid Option: -$OPTARG" 1>&2
-            usage
-            exit 1
-            ;;
-        : )
-            echo "Invalid Option: -$OPTARG requires an argument" 1>&2
-            usage
-            exit 1
-            ;;
-    esac
+  case $opt in
+    s) OFFSET=$OPTARG ;;
+    *) usage ;;
+  esac
 done
-shift $((OPTIND -1))
+shift $((OPTIND-1))
 
-# Assign FOLDERIN from remaining argument
-FOLDERIN=$1
+RUN_DIR=$1
+[[ -d $RUN_DIR ]] || { echo "Run directory not found"; usage; }
 
-# Validate FOLDERIN
-if [[ -z "$FOLDERIN" ]]; then
-    echo "ERROR: Input folder not specified."
-    usage
-    exit 1
-fi
-
-FOLDERPATH="$FOLDERIN"
-FOLDERNAME=$(basename "$FOLDERIN")
-FOLDEROUT="${FOLDERPATH}/merged"
-
-# Check for existing 'merged' folder
-if [[ -d ${FOLDEROUT} ]]; then
-    echo "Found existing folder ${FOLDEROUT}, please delete to continue."
-    exit 1
-fi
-
-# Initialize the list of barcodes to keep
-if [[ -z $OFFSET ]]; then
-    OFFSET=1
-fi
+# build barcode list
 KEEPERS=( $(seq -f "%02g" $OFFSET 96) )
 
-# Prepare output directories
-FASTQPATH="${FOLDEROUT}"
-mkdir -p "$FASTQPATH"
+# find every fastq_pass under the run
+find "$RUN_DIR" -type d -name fastq_pass | while read FASTQ_DIR; do
+  SAMPLE_DIR=$(dirname "$FASTQ_DIR")
+  MERGE_DIR="$SAMPLE_DIR/merged"
+  mkdir -p "$MERGE_DIR"
+  SAMPLE_NAME=$(basename "$SAMPLE_DIR")
 
-# Iterate through barcodes and concatenate FASTQ files
-for BARCODE in ${KEEPERS[@]}; do
-# Only proceed if files for this barcode exist
-if [[ -n $(find $FOLDERPATH -name "*.fastq.gz" -path "*fastq_pass/*_pass*barcode$BARCODE*" -not -path "*merged*") ]]; then
-    FASTQRESULT="$FASTQPATH"/"$FOLDERNAME"_pass_barcode"$BARCODE"_"${ONTID}"_0.fastq.gz
-
-    find $FOLDERPATH -name "*.fastq.gz" -path "*fastq_pass/*_pass*barcode$BARCODE*" -not -path "*merged*" | xargs -I {} cat {} >> ${FASTQRESULT}
-fi
+  for BC in "${KEEPERS[@]}"; do
+    OUT="$MERGE_DIR/${SAMPLE_NAME}_pass_barcode${BC}.fastq.gz"
+    # find all matching per-BC files in this fastq_pass
+    find "$FASTQ_DIR" -type f -name "*barcode${BC}*.fastq.gz" \
+      -print0 | xargs -0 cat >> "$OUT"
+  done
 done
