@@ -28,11 +28,18 @@ find "$RUN_DIR" -type d -name fastq_pass | while read -r FASTQ_DIR; do
   SAMPLE_NAME=$(basename "$SAMPLE_DIR")
 
   for BC in "${KEEPERS[@]}"; do
+    [[ -d "$FASTQ_DIR/barcode${BC}" ]] || continue
+
+    mapfile -d '' FILES < <(
+      find "$FASTQ_DIR/barcode${BC}" -type f -name "*barcode${BC}*.fastq.gz" -print0
+    )
+
+    (( ${#FILES[@]} )) || continue
+
     OUT="$MERGE_DIR/${SAMPLE_NAME}_pass_barcode${BC}.fastq.gz"
 
     rm -f "$OUT"
-
-    find "$FASTQ_DIR" -type f -name "*barcode${BC}*.fastq.gz" -print0 \
-      | xargs -0r cat > "$OUT"
+    
+    cat "${FILES[@]}" > "$OUT"
   done
 done
