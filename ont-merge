@@ -16,14 +16,12 @@ while getopts ":s:" opt; do
 done
 shift $((OPTIND-1))
 
-RUN_DIR=$1
-[[ -d $RUN_DIR ]] || { echo "Run directory not found"; usage; }
+RUN_DIR=${1:-}
+[[ -d ${RUN_DIR:-} ]] || { echo "Run directory not found"; usage; }
 
-# build barcode list
-KEEPERS=( $(seq -f "%02g" $OFFSET 96) )
+KEEPERS=( $(seq -f "%02g" "$OFFSET" 96) )
 
-# find every fastq_pass under the run
-find "$RUN_DIR" -type d -name fastq_pass | while read FASTQ_DIR; do
+find "$RUN_DIR" -type d -name fastq_pass | while read -r FASTQ_DIR; do
   SAMPLE_DIR=$(dirname "$FASTQ_DIR")
   MERGE_DIR="$SAMPLE_DIR/merged"
   mkdir -p "$MERGE_DIR"
@@ -31,8 +29,10 @@ find "$RUN_DIR" -type d -name fastq_pass | while read FASTQ_DIR; do
 
   for BC in "${KEEPERS[@]}"; do
     OUT="$MERGE_DIR/${SAMPLE_NAME}_pass_barcode${BC}.fastq.gz"
-    # find all matching per-BC files in this fastq_pass
-    find "$FASTQ_DIR" -type f -name "*barcode${BC}*.fastq.gz" \
-      -print0 | xargs -0 cat >> "$OUT"
+
+    rm -f "$OUT"
+
+    find "$FASTQ_DIR" -type f -name "*barcode${BC}*.fastq.gz" -print0 \
+      | xargs -0r cat > "$OUT"
   done
 done
